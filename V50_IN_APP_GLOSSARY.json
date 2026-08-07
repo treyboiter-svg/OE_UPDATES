@@ -1,0 +1,62 @@
+[
+  {
+    "section": "game_environment_audit",
+    "field": "roof_state",
+    "meaning": "Resolved roof state for the game branch.",
+    "derivation": "resolve_roof_state() quorum/dedicated-source logic"
+  },
+  {
+    "section": "game_environment_audit",
+    "field": "air_density_kg_m3",
+    "meaning": "Moist-air density at the venue for this branch.",
+    "derivation": "density_terms() ideal-gas mixture equation"
+  },
+  {
+    "section": "density_calculation_audit",
+    "field": "vapor_pressure_pa",
+    "meaning": "Partial pressure of water vapor.",
+    "derivation": "relative_humidity_pct * saturation_vapor_pressure_pa"
+  },
+  {
+    "section": "density_calculation_audit",
+    "field": "dry_air_partial_pressure_pa",
+    "meaning": "Total pressure minus vapor pressure.",
+    "derivation": "pressure_pa - vapor_pressure_pa"
+  },
+  {
+    "section": "roof_conflict_audit",
+    "field": "has_conflict",
+    "meaning": "True when dedicated and generic roof sources disagree.",
+    "derivation": "distinct vote count across all non-null sources > 1"
+  },
+  {
+    "section": "pitch_effect_decomposition",
+    "field": "density_effect",
+    "meaning": "Carry-distance change (ft/400ft) attributable to air density alone.",
+    "derivation": "(1 - density_ratio_to_ref) * 5.2"
+  },
+  {
+    "section": "pitch_effect_decomposition",
+    "field": "wind_effect",
+    "meaning": "Carry-distance change (ft/400ft) attributable to wind component toward/away from CF.",
+    "derivation": "(wind_out_to_cf_kmh / 10.0) * 3.0"
+  },
+  {
+    "section": "pitch_effect_decomposition",
+    "field": "roof_branch_effect",
+    "meaning": "Secondary carry effect attributable to enclosed-branch conditions.",
+    "derivation": "0 for OUTDOOR branch; 15% of density_effect for ENCLOSED branch"
+  },
+  {
+    "section": "run_health_and_model_diagnostics",
+    "field": "status",
+    "meaning": "PASS / WARN / INFO indicator per diagnostic check.",
+    "derivation": "main() run summary"
+  },
+  {
+    "section": "findings",
+    "field": "severity",
+    "meaning": "FATAL stops the run; WARN/INFO are non-blocking but must be surfaced.",
+    "derivation": "Health.add()"
+  }
+]
