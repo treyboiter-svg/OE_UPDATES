@@ -1,1 +1,431 @@
-PLACEHOLDER_HTML_REAL
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MLB Pitch Environment - V53 Forensic Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#0b0f14;--panel:#121821;--text:#e6edf3;--muted:#9aa7b3;--accent:#4da3ff;--good:#3fbf60;--warn:#e0a63c;--bad:#e0503c;--border:#22303f;}
+[data-theme="light"]{--bg:#f6f8fa;--panel:#ffffff;--text:#1b2430;--muted:#5b6b7a;--border:#dfe6ec;}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;flex-wrap:wrap;gap:10px}
+header h1{font-size:16px;margin:0}
+nav{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;border-bottom:1px solid var(--border)}
+nav button{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px}
+nav button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+main{padding:20px;max-width:1550px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.card h3{margin-top:0}
+.hint{color:var(--muted);font-size:12px;margin:4px 0 14px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px}
+.stat .v{font-size:24px;font-weight:700}
+.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr:hover{background:rgba(77,163,255,.06)}
+th{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--panel);border-bottom:2px solid var(--border);cursor:help}
+.pill{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.02em}
+.pill.ok{background:rgba(63,191,96,.18);color:var(--good)}
+.pill.warn{background:rgba(224,166,60,.18);color:var(--warn)}
+.pill.bad{background:rgba(224,80,60,.18);color:var(--bad)}
+.pill.info{background:rgba(77,163,255,.18);color:var(--accent)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+button.btn{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:600}
+button.btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
+input[type=text],input[type=file]{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 11px;font-size:12.5px}
+.section{display:none}
+.section.active{display:block}
+.game-link{cursor:pointer;color:var(--accent);text-decoration:underline;font-weight:600}
+.empty{color:var(--muted);font-style:italic;padding:24px;text-align:center}
+.na-note{color:var(--muted);font-style:italic;padding:18px;text-align:center;border:1px dashed var(--border);border-radius:8px}
+.table-scroll{overflow-x:auto;border-radius:8px}
+.subhead{color:var(--text);font-size:12.5px;font-weight:700;margin:20px 0 8px;padding:8px 12px;background:rgba(77,163,255,.08);border-left:3px solid var(--accent);border-radius:4px}
+.group-block{margin-bottom:14px}
+.env-summary{display:flex;gap:20px;flex-wrap:wrap;padding:12px 0;font-size:13px}
+.env-summary b{color:var(--text)}
+.wind-desc{color:var(--accent);font-style:italic}
+</style>
+</head>
+<body data-theme="dark">
+<header>
+  <h1>MLB Pitch Environment &mdash; V53 Forensic Dashboard</h1>
+  <div class="controls">
+    <input type="file" id="importFile" accept=".json,.csv" multiple>
+    <button class="btn secondary" id="themeToggle">Theme</button>
+    <button class="btn" id="exportBundleBtn">Export Bundle JSON</button>
+    <button class="btn" id="exportHealthBtn">Export Health JSON</button>
+  </div>
+</header>
+<nav>
+  <button data-route="overview" class="active">Overview</button>
+  <button data-route="games">Games</button>
+  <button data-route="roofconflicts">Roof Conflicts</button>
+  <button data-route="provenance">Atmosphere Provenance</button>
+  <button data-route="density">Density Audit</button>
+  <button data-route="pitcheffects">Pitch Effects</button>
+  <button data-route="activespin">Active Spin Audit</button>
+  <button data-route="health">System Health</button>
+  <button data-route="glossary">Glossary</button>
+</nav>
+<main>
+  <div class="card">
+    <div class="controls">
+      <input type="text" id="searchBox" placeholder="Search games, venues, pitchers...">
+    </div>
+  </div>
+
+  <section id="overview" class="section active">
+    <div class="grid" id="overviewStats"></div>
+    <div class="card"><h3>Scheduled Games</h3><p class="hint">Temperatures in Fahrenheit, elevation in feet, times in Eastern (EST). Hover any column header for its definition, unit, and how it's calculated.</p><div class="table-scroll" id="overviewGamesTable"></div></div>
+  </section>
+
+  <section id="games" class="section">
+    <div class="card"><div class="table-scroll" id="gamesTable"></div></div>
+    <div class="card" id="gameDetail" style="display:none"></div>
+  </section>
+
+  <section id="roofconflicts" class="section">
+    <div class="card">
+      <h3>Roof Conflict Audit</h3>
+      <p class="hint">A conflict means dedicated and generic roof sources disagree, or no two-source quorum exists. Conflicted games are modeled with both OUTDOOR and ENCLOSED branches rather than a forced decision. Outdoor/fixed-roof stadiums never appear here.</p>
+      <div class="table-scroll" id="roofConflictTable"></div>
+    </div>
+    <div class="card"><h3>Roof Evidence (raw source votes)</h3><div class="table-scroll" id="roofEvidenceTable"></div></div>
+  </section>
+
+  <section id="provenance" class="section">
+    <div class="card"><h3>Atmosphere Provenance</h3><p class="hint">Where every temperature/pressure value actually came from, per branch, with forecast time shown in Eastern time and forecast_time_delta_minutes flagging any gap between the selected forecast hour and actual first pitch.</p><div class="table-scroll" id="provenanceTable"></div></div>
+  </section>
+
+  <section id="density" class="section">
+    <div class="card">
+      <h3>Density Calculation Audit</h3>
+      <p class="hint">Every intermediate term of the moist-air density equation: vapor pressure, dry-air partial pressure, dry/vapor density components, and final density ratio. Hover any column header for its definition.</p>
+      <div class="table-scroll" id="densityTable"></div>
+    </div>
+  </section>
+
+  <section id="pitcheffects" class="section">
+    <div class="card">
+      <h3>Pitch Effect Decomposition</h3>
+      <p class="hint">Density effect and wind effect are <b>game-and-branch-level</b> values &mdash; they are correctly identical across every pitcher and pitch type within the same game+branch, because they depend only on the environment, not the individual pitcher. Real per-pitch variation lives in the Pitch Physics table below (H-Break/V-Break deltas, active spin, velocity).</p>
+      <div class="table-scroll" id="pitchEffectsTable"></div>
+    </div>
+    <div class="card"><h3>Pitch Physics (pitcher-specific baseline + environment)</h3><p class="hint">Grouped by pitcher, game, and branch. Within each group, pitches are sorted by usage &mdash; most-thrown pitch first. H-Break/V-Break deltas vary per pitch type; active spin is sourced from Savant's season Active Spin leaderboard (see Active Spin Audit tab for match provenance).</p><div id="pitchPhysicsTable"></div></div>
+  </section>
+
+  <section id="activespin" class="section">
+    <div class="card">
+      <h3>Active Spin Merge Audit</h3>
+      <p class="hint">Active spin is NOT part of the per-pitch Statcast Search export &mdash; it only exists on Baseball Savant's season Active Spin leaderboard. This table shows, for every pitcher+pitch-type in today's slate, exactly how (or whether) it was matched against that leaderboard. PLAYER_ID_MATCH is the most reliable method; NAME_MATCH is a fallback; anything ending in NO_PITCH_TYPE_HIT, NO_PITCHER_MATCH, or LEADERBOARD_UNAVAILABLE means active_spin_pct is genuinely unavailable this run, not silently dropped.</p>
+      <div class="table-scroll" id="activeSpinTable"></div>
+    </div>
+  </section>
+
+  <section id="health" class="section">
+    <div class="grid" id="healthStats"></div>
+    <div class="card"><h3>Findings</h3><div class="table-scroll" id="findingsTable"></div></div>
+    <div class="card"><h3>Run Diagnostics</h3><div class="table-scroll" id="diagnosticsTable"></div></div>
+  </section>
+
+  <section id="glossary" class="section">
+    <div class="card">
+      <input type="text" id="glossarySearch" placeholder="Search glossary...">
+      <div class="table-scroll" id="glossaryTable"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+let BUNDLE = null;
+
+const FIELD_LABELS = {
+  game_pk: "Game ID", venue_name: "Venue", venue_name_api: "Venue (API name)", roofclass: "Roof Class",
+  ballparkelevationm: "Elevation (m)", elevation_ft: "Elevation (ft)", roof_state: "Roof State",
+  roof_decision_reason: "Decision Reason", roof_votes_json: "Source Votes", park_join_method: "Park Join Method",
+  home_plate_bearing_deg: "HP Bearing (deg)", branch: "Branch", temperature_c: "Temp (C)",
+  temperature_f: "Temp (F)", relative_humidity_pct: "Humidity (%)", pressure_hpa: "Pressure (hPa)",
+  air_density_kg_m3: "Air Density (kg/m3)", density_ratio_to_ref: "Density Ratio",
+  game_datetime_utc: "Start (UTC)", game_datetime_est: "Start (EST)",
+  wind_speed_mph: "Wind (mph)", wind_park_relative_description: "Wind Direction",
+  forecast_valid_time_est: "Forecast Time (EST)", forecast_time_delta_minutes: "Forecast/Game Time Gap (min)",
+  source: "Source", scope: "Scope", vote: "Vote", parser_status: "Parser Status", confidence: "Confidence",
+  http_status: "HTTP", page_char_length: "Page Size (chars)", roof_keyword_found: "Roof Keyword?", raw_file: "Raw File",
+  has_conflict: "Conflict?", resolution: "Resolution", dedicated_votes_json: "Dedicated Votes", generic_votes_json: "Generic Votes",
+  total_votes_cast: "Total Votes Cast",
+  temperature_source: "Temp Source", pressure_source: "Pressure Source", forecast_valid_time_utc: "Forecast Time (UTC)",
+  venue_lat: "Lat", venue_lon: "Lon", venue_elevation_m: "Elevation (m)",
+  temperature_k: "Temp (K)", pressure_pa: "Pressure (Pa)", saturation_vapor_pressure_pa: "Sat. Vapor P (Pa)",
+  vapor_pressure_pa: "Vapor Pressure (Pa)", dry_air_partial_pressure_pa: "Dry-Air Partial P (Pa)",
+  dry_air_density_kg_m3: "Dry-Air Density (kg/m3)", vapor_density_kg_m3: "Vapor Density (kg/m3)",
+  pitcher_id: "Pitcher ID", pitch_type: "Pitch Type", density_effect: "Density Effect (ft/400ft)",
+  wind_effect: "Wind Effect (ft/400ft)", roof_branch_effect: "Roof-Branch Effect (ft/400ft)",
+  total_carry_effect_ft_400ft: "Total Carry Effect (ft/400ft)", wind_out_to_cf_kmh: "Wind toward CF (km/h)",
+  pitcher_name: "Pitcher", team: "Team", side: "Side", pitcher_resolution_method: "Starter Resolution",
+  pitches: "Pitches", usage_pct: "Usage (%)", release_speed: "Velocity (mph)", effective_speed: "Effective Velo (mph)",
+  release_spin_rate: "Spin (rpm)", spin_axis: "Spin Axis (deg)",
+  active_spin_pct: "Active Spin (%)", active_spin_source: "Active Spin Source", release_extension: "Extension (ft)",
+  pfx_x: "H-Break (in)", pfx_z: "V-Break (in)", projected_pfx_x: "Projected H-Break (in)",
+  delta_pfx_x_inches: "H-Break Delta (in)", projected_pfx_z: "Projected V-Break (in)",
+  delta_pfx_z_inches: "V-Break Delta (in)", carry_wind_adjustment_ft_400ft: "Wind Carry Adj (ft/400ft)",
+  carry_density_adjustment_ft_400ft: "Density Carry Adj (ft/400ft)",
+  effective_plate_speed_delta_mph: "Plate Speed Delta (mph)", active_spin_environment_index: "Active Spin Index",
+  window_basis: "Data Window", model_label: "Model", check: "Check", value: "Value", status: "Status",
+  severity: "Severity", code: "Code", entity: "Entity", message: "Message", action: "Action",
+  match_method: "Match Method", leaderboard_year: "Leaderboard Year",
+};
+const GLOSSARY_BY_FIELD = {};
+
+function label(k){ return FIELD_LABELS[k] || k; }
+function tooltipFor(k){
+  const g = GLOSSARY_BY_FIELD[k];
+  if(!g) return label(k);
+  return (g.meaning || '') + (g.unit ? ' [' + g.unit + ']' : '') + (g.derivation ? ' - ' + g.derivation : '');
+}
+function fmt(v){
+  if(v===null||v===undefined||v==='') return '&mdash;';
+  if(typeof v==='number'){
+    if(Number.isInteger(v)) return v.toLocaleString();
+    return Math.abs(v) < 10 ? v.toFixed(4) : v.toFixed(2);
+  }
+  return v;
+}
+function pill(text,kind){ return '<span class="pill '+kind+'">'+text+'</span>'; }
+function roofPill(state){
+  if(!state) return pill('&mdash;','warn');
+  const s = String(state);
+  if(s==='OPEN') return pill('OPEN','ok');
+  if(s==='CLOSED'||s==='FIXED_CLOSED') return pill('CLOSED','warn');
+  if(s.indexOf('UNRESOLVED')!==-1||s.indexOf('CONFLICT')!==-1) return pill('CONFLICT / DUAL-BRANCH','bad');
+  if(s==='NOT_APPLICABLE') return pill('N/A (outdoor)','info');
+  return pill(s,'info');
+}
+function matchMethodPill(method){
+  if(!method) return pill('&mdash;','warn');
+  const s = String(method);
+  if(s==='PLAYER_ID_MATCH') return pill(s,'ok');
+  if(s==='NAME_MATCH') return pill(s,'info');
+  return pill(s,'bad');
+}
+function timeGapPill(minutes){
+  if(minutes===null||minutes===undefined||minutes==='') return fmt(minutes);
+  const m = Number(minutes);
+  if(m>90) return pill(m.toFixed(0)+' min GAP','bad');
+  return fmt(m);
+}
+function table(rows, cols){
+  if(!rows || rows.length===0) return '<div class="empty">No rows.</div>';
+  const c = cols || Object.keys(rows[0]);
+  let h = '<table><thead><tr>'+c.map(function(x){return '<th title="'+tooltipFor(x).replace(/"/g,'&quot;')+'">'+label(x)+'</th>';}).join('')+'</tr></thead><tbody>';
+  for(const r of rows){ h += '<tr>'+c.map(function(k){
+    if(k==='roof_state') return '<td>'+roofPill(r[k])+'</td>';
+    if(k==='has_conflict') return '<td>'+(r[k]?pill('CONFLICT','bad'):pill('CONSENSUS','ok'))+'</td>';
+    if(k==='wind_park_relative_description') return '<td class="wind-desc">'+fmt(r[k])+'</td>';
+    if(k==='match_method') return '<td>'+matchMethodPill(r[k])+'</td>';
+    if(k==='forecast_time_delta_minutes') return '<td>'+timeGapPill(r[k])+'</td>';
+    return '<td>'+fmt(r[k])+'</td>';
+  }).join('')+'</tr>'; }
+  return h+'</tbody></table>';
+}
+function notApplicableOrEmpty(rows, naReason){
+  if(rows && rows.length>0) return null;
+  return '<div class="na-note">'+naReason+'</div>';
+}
+
+function statusPill(status){
+  if(!status) return pill('N/A','warn');
+  const s = String(status);
+  if(s.indexOf('FAIL')!==-1 || s.indexOf('FATAL')!==-1) return pill(s,'bad');
+  if(s.indexOf('WARN')!==-1) return pill(s,'warn');
+  return pill(s,'ok');
+}
+
+async function loadBundle(){
+  try{
+    const res = await fetch('mlb_dashboard_data_bundle.json', {cache:'no-store'});
+    BUNDLE = await res.json();
+  }catch(e){
+    BUNDLE = {meta:{version:'unknown'}, summary:{}, games:[], glossary:[],
+      game_environment_audit:[], roof_evidence_audit:[], roof_conflict_audit:[],
+      pitcher_query_audit:[], pitch_physics_environment:[], atmosphere_provenance_audit:[],
+      density_calculation_audit:[], pitch_effect_decomposition:[], active_spin_merge_audit:[],
+      run_health_and_model_diagnostics:[], findings:[], bundle_findings:[]};
+  }
+  (BUNDLE.glossary||[]).forEach(function(g){ if(g.field) GLOSSARY_BY_FIELD[g.field] = g; });
+  render();
+}
+
+function groupedPitchPhysicsTable(rows){
+  if(!rows || !rows.length) return '<div class="empty">No rows.</div>';
+  const groups = {};
+  const order = [];
+  rows.forEach(function(r){
+    const key = r.game_pk+'|'+r.pitcher_name+'|'+r.branch;
+    if(!groups[key]){ groups[key]=[]; order.push(key); }
+    groups[key].push(r);
+  });
+  let html = '';
+  order.forEach(function(key){
+    const grp = groups[key].slice().sort(function(a,b){ return (b.usage_pct||0)-(a.usage_pct||0); });
+    const h = grp[0];
+    html += '<div class="group-block">';
+    html += '<div class="subhead">'+fmt(h.pitcher_name)+' &mdash; '+fmt(h.team)+' &mdash; '+fmt(h.branch)+' branch &mdash; Game '+fmt(h.game_pk)+'</div>';
+    html += '<div class="table-scroll">'+table(grp, ['pitch_type','pitches','usage_pct','release_speed','effective_speed','release_spin_rate','spin_axis','active_spin_pct','pfx_x','pfx_z','delta_pfx_x_inches','delta_pfx_z_inches'])+'</div>';
+    html += '</div>';
+  });
+  return html;
+}
+
+function render(){
+  if(!BUNDLE) return;
+  const s = BUNDLE.summary || {};
+  document.getElementById('overviewStats').innerHTML =
+    '<div class="stat"><div class="v">'+fmt(s.scheduled_games)+'</div><div class="l">Scheduled Games</div></div>'+
+    '<div class="stat"><div class="v">'+fmt(s.environment_rows)+'</div><div class="l">Environment Rows</div></div>'+
+    '<div class="stat"><div class="v">'+fmt(s.pitch_physics_rows)+'</div><div class="l">Pitch Physics Rows</div></div>'+
+    '<div class="stat"><div class="v">'+fmt(s.pitch_effect_decomposition_rows)+'</div><div class="l">Effect Decomposition Rows</div></div>'+
+    '<div class="stat"><div class="v">'+fmt(s.conflicted_roof_games)+'</div><div class="l">Conflicted Roof Games</div></div>'+
+    '<div class="stat"><div class="v">'+(s.active_spin_match_rate_pct===null||s.active_spin_match_rate_pct===undefined ? pill('N/A','warn') : fmt(s.active_spin_match_rate_pct)+'%')+'</div><div class="l">Active Spin Match Rate</div></div>'+
+    '<div class="stat"><div class="v">'+fmt(s.findings)+'</div><div class="l">Findings</div></div>'+
+    '<div class="stat"><div class="v">'+(s.bundle_fatal? pill('FATAL','bad') : pill('OK','ok'))+'</div><div class="l">Bundle Integrity</div></div>';
+
+  document.getElementById('overviewGamesTable').innerHTML = table(BUNDLE.games,
+    ['game_pk','game_datetime_est','venue_name','roofclass','roof_state','roof_decision_reason','forecast_time_delta_minutes']);
+
+  document.getElementById('gamesTable').innerHTML = table((BUNDLE.games||[]).map(function(g){
+    return Object.assign({}, g, {open: '<span class="game-link" data-game="'+g.game_pk+'">View &rarr;</span>'});
+  }), ['game_pk','venue_name','roofclass','roof_state','open']);
+  document.querySelectorAll('.game-link').forEach(function(el){
+    el.addEventListener('click', function(){ showGame(el.dataset.game); });
+  });
+
+  const conflictHtml = notApplicableOrEmpty(BUNDLE.roof_conflict_audit, 'No conflicts recorded. This appears only when a game has a retractable-roof venue AND its sources disagreed or lacked quorum.')
+    || table((BUNDLE.roof_conflict_audit||[]), ['game_pk','venue_name','resolution','has_conflict','total_votes_cast','dedicated_votes_json','generic_votes_json']);
+  document.getElementById('roofConflictTable').innerHTML = conflictHtml;
+  document.getElementById('roofEvidenceTable').innerHTML = notApplicableOrEmpty(BUNDLE.roof_evidence_audit, 'No roof-evidence rows in this run. This section only ever contains rows for retractable-roof venues.')
+    || table(BUNDLE.roof_evidence_audit, ['game_pk','source','scope','vote','parser_status','confidence','http_status']);
+
+  document.getElementById('provenanceTable').innerHTML = table(BUNDLE.atmosphere_provenance_audit,
+    ['game_pk','venue_name','branch','temperature_source','pressure_source','forecast_valid_time_est','forecast_time_delta_minutes']);
+
+  document.getElementById('densityTable').innerHTML = table(BUNDLE.density_calculation_audit,
+    ['game_pk','venue_name','branch','temperature_k','relative_humidity_pct','pressure_pa','saturation_vapor_pressure_pa',
+     'vapor_pressure_pa','dry_air_partial_pressure_pa','dry_air_density_kg_m3','vapor_density_kg_m3','air_density_kg_m3','density_ratio_to_ref']);
+
+  document.getElementById('pitchEffectsTable').innerHTML = table(BUNDLE.pitch_effect_decomposition,
+    ['game_pk','pitcher_id','pitch_type','branch','density_effect','wind_effect','roof_branch_effect','total_carry_effect_ft_400ft']);
+  document.getElementById('pitchPhysicsTable').innerHTML = groupedPitchPhysicsTable(BUNDLE.pitch_physics_environment);
+
+  document.getElementById('activeSpinTable').innerHTML = notApplicableOrEmpty(BUNDLE.active_spin_merge_audit, 'No active-spin merge attempts recorded (no pitchers resolved this run).')
+    || table(BUNDLE.active_spin_merge_audit, ['pitcher_name','pitch_type','match_method','active_spin_pct','leaderboard_year']);
+
+  document.getElementById('healthStats').innerHTML =
+    '<div class="stat"><div class="v">'+fmt(s.findings)+'</div><div class="l">Total Findings</div></div>'+
+    '<div class="stat"><div class="v">'+(s.bundle_fatal? pill('FAIL','bad') : pill('PASS','ok'))+'</div><div class="l">Bundle Status</div></div>';
+  document.getElementById('findingsTable').innerHTML = notApplicableOrEmpty(BUNDLE.findings, 'No findings this run - no warnings or errors were recorded.')
+    || table((BUNDLE.findings||[]).map(function(f){ return Object.assign({}, f, {severity: statusPill(f.severity)}); }), ['severity','code','entity','message','action']);
+  document.getElementById('diagnosticsTable').innerHTML = table((BUNDLE.run_health_and_model_diagnostics||[]).map(function(d){
+    return Object.assign({}, d, {status: statusPill(d.status)});
+  }), ['check','value','status']);
+
+  renderGlossary();
+}
+
+function showGame(gamePk){
+  document.querySelectorAll('nav button').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelector('[data-route="games"]').classList.add('active');
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('games').classList.add('active');
+  const detail = document.getElementById('gameDetail');
+  detail.style.display = 'block';
+  const env = (BUNDLE.game_environment_audit||[]).filter(function(r){ return String(r.game_pk)===String(gamePk); });
+  const roof = (BUNDLE.roof_evidence_audit||[]).filter(function(r){ return String(r.game_pk)===String(gamePk); });
+  const conflict = (BUNDLE.roof_conflict_audit||[]).filter(function(r){ return String(r.game_pk)===String(gamePk); });
+  const physics = (BUNDLE.pitch_physics_environment||[]).filter(function(r){ return String(r.game_pk)===String(gamePk); });
+  const effects = (BUNDLE.pitch_effect_decomposition||[]).filter(function(r){ return String(r.game_pk)===String(gamePk); });
+  const isOutdoor = env.length>0 && env[0].roofclass==='OUTDOOR';
+  const roofNote = isOutdoor ? '<div class="na-note">This is an outdoor stadium. Roof evidence and conflict data are structurally not applicable and are never generated for outdoor venues.</div>' : '';
+  const envSummary = env.length ? ('<div class="env-summary">'+
+    '<div><b>'+fmt(env[0].temperature_f)+'&deg;F</b> / '+fmt(env[0].temperature_c)+'&deg;C</div>'+
+    '<div><b>'+fmt(env[0].elevation_ft)+' ft</b> elevation</div>'+
+    '<div><b>'+fmt(env[0].wind_speed_mph)+' mph</b> wind, <span class="wind-desc">'+fmt(env[0].wind_park_relative_description)+'</span></div>'+
+    '<div><b>'+fmt(env[0].air_density_kg_m3)+' kg/m&sup3;</b> air density (ratio '+fmt(env[0].density_ratio_to_ref)+')</div>'+
+    '<div><b>forecast gap:</b> '+timeGapPill(env[0].forecast_time_delta_minutes)+'</div>'+
+    '</div>') : '';
+  detail.innerHTML = '<h3>Game '+gamePk+'</h3>'+
+    '<button class="btn secondary" id="exportGameBtn">Export This Game (JSON)</button>'+
+    envSummary+
+    '<div class="subhead">Environment Branches</div>'+table(env)+
+    '<div class="subhead">Roof Evidence</div>'+(roof.length? table(roof) : roofNote || '<div class="empty">No rows.</div>')+
+    '<div class="subhead">Roof Conflict</div>'+(conflict.length? table(conflict) : roofNote || '<div class="empty">No rows.</div>')+
+    '<div class="subhead">Pitch Physics (grouped by pitcher, sorted by usage)</div>'+groupedPitchPhysicsTable(physics)+
+    '<div class="subhead">Pitch Effect Decomposition</div>'+table(effects);
+  document.getElementById('exportGameBtn').addEventListener('click', function(){
+    downloadJSON('game_'+gamePk+'.json', {env:env, roof:roof, conflict:conflict, physics:physics, effects:effects});
+  });
+}
+
+function renderGlossary(filter){
+  const rows = (BUNDLE.glossary||[]).filter(function(g){
+    if(!filter) return true;
+    const f = filter.toLowerCase();
+    return Object.values(g).some(function(v){ return String(v).toLowerCase().indexOf(f)!==-1; });
+  });
+  document.getElementById('glossaryTable').innerHTML = table(rows, ['section','field','meaning','unit','derivation']);
+}
+
+function downloadJSON(name, obj){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+}
+
+document.querySelectorAll('nav button').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('nav button').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+    document.getElementById(btn.dataset.route).classList.add('active');
+  });
+});
+
+document.getElementById('themeToggle').addEventListener('click', function(){
+  const b = document.body;
+  b.dataset.theme = b.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+
+document.getElementById('exportBundleBtn').addEventListener('click', function(){ downloadJSON('mlb_dashboard_data_bundle.json', BUNDLE); });
+document.getElementById('exportHealthBtn').addEventListener('click', async function(){
+  try{
+    const res = await fetch('mlb_dashboard_system_health.json', {cache:'no-store'});
+    downloadJSON('mlb_dashboard_system_health.json', await res.json());
+  }catch(e){
+    downloadJSON('mlb_dashboard_system_health.json', {summary: BUNDLE.summary, findings: BUNDLE.findings});
+  }
+});
+
+document.getElementById('searchBox').addEventListener('input', function(e){
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll('#gamesTable tbody tr, #overviewGamesTable tbody tr').forEach(function(tr){
+    tr.style.display = tr.textContent.toLowerCase().indexOf(q)!==-1 ? '' : 'none';
+  });
+});
+document.getElementById('glossarySearch').addEventListener('input', function(e){ renderGlossary(e.target.value); });
+
+document.getElementById('importFile').addEventListener('change', async function(e){
+  for(const file of e.target.files){
+    const text = await file.text();
+    if(file.name.endsWith('.json')){
+      try{ BUNDLE = JSON.parse(text); (BUNDLE.glossary||[]).forEach(function(g){ if(g.field) GLOSSARY_BY_FIELD[g.field] = g; }); render(); }catch(err){ alert('Invalid JSON: '+err.message); }
+    } else if(file.name.endsWith('.csv')){
+      alert('CSV import received: '+file.name+' (attach matching bundle JSON for full render).');
+    }
+  }
+});
+
+loadBundle();
+</script>
+</body>
+</html>
