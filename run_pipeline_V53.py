@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""V53 pipeline orchestrator.
+"""V53.1 pipeline orchestrator.
 
 Per project architecture constraints: uses pathlib.Path for all file pathing,
 subprocess.run with sys.executable to trigger local execution of the two
@@ -7,11 +7,20 @@ pipeline stages, and a shared JSON file contract (pipeline_status.json) to
 exchange status between stages instead of parsing free-form stdout text by
 hand. stdout and stderr are captured separately for each stage and written to
 per-run log files so failures are diagnosable without re-running anything.
+
+FIX (V53.1, confirmed from production run): the previous version opened the
+dashboard URL after a fixed time.sleep(1.5), which raced the local
+http.server binding its port on slower machines/disks and produced a 404 in
+the browser even though the pipeline itself passed. Replaced with an actual
+TCP-connect readiness poll (wait_for_server) up to 10 seconds before opening
+the browser, falling back to a direct file:// URI if the server never comes
+up in time.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import socket
 import subprocess
 import sys
 import time
@@ -77,6 +86,20 @@ def start_http_server(run_dir: Path, port: int, log_dir: Path) -> subprocess.Pop
         return None
 
 
+def wait_for_server(host: str, port: int, timeout: float = 10.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(0.5)
+            try:
+                if sock.connect_ex((host, port)) == 0:
+                    return True
+            except OSError:
+                pass
+        time.sleep(0.2)
+    return False
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=str(date.today()))
@@ -94,7 +117,7 @@ def main() -> int:
     bundle_script = script_dir / "build_dashboard_bundle_V53.py"
 
     pipeline_status: dict[str, Any] = {
-        "pipeline_version": "1.0.0", "requested_date": args.date,
+        "pipeline_version": "1.0.1", "requested_date": args.date,
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
         "stages": [], "overall_status": "RUNNING",
     }
@@ -151,8 +174,7 @@ def main() -> int:
         dashboard = run_dir / "mlb-pitch-environment-live-dashboard-V53.html"
         if dashboard.exists():
             proc = start_http_server(run_dir, args.http_port, logs_dir)
-            if proc is not None:
-                time.sleep(1.5)
+            if proc is not None and wait_for_server("127.0.0.1", args.http_port, timeout=10.0):
                 webbrowser.open(f"http://localhost:{args.http_port}/{dashboard.name}")
             else:
                 webbrowser.open(dashboard.resolve().as_uri())
